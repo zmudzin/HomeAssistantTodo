@@ -5,10 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.homeassistanttodo.BuildConfig
 import com.example.homeassistanttodo.data.websocket.HomeAssistantWebSocket
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import com.example.homeassistanttodo.data.websocket.ConnectionState
-import kotlinx.coroutines.flow.SharingStarted
 import javax.inject.Inject
 
 @HiltViewModel
@@ -16,39 +15,21 @@ class ConnectionViewModel @Inject constructor(
     private val webSocket: HomeAssistantWebSocket
 ) : ViewModel() {
 
-    val uiState = webSocket.connectionState.map { connectionState ->
-        when (connectionState) {
-            is ConnectionState.Connected -> ConnectionUiState(
+    val uiState = webSocket.connectionState
+        .map { state ->
+            state.toUiState(
                 serverUrl = BuildConfig.HA_SERVER_URL,
-                token = BuildConfig.HA_TOKEN,
-                connectionStatus = "Connected"
-            )
-            is ConnectionState.Authenticated -> ConnectionUiState(
-                serverUrl = BuildConfig.HA_SERVER_URL,
-                token = BuildConfig.HA_TOKEN,
-                connectionStatus = "Authenticated"
-            )
-            is ConnectionState.Disconnected -> ConnectionUiState(
-                serverUrl = BuildConfig.HA_SERVER_URL,
-                token = BuildConfig.HA_TOKEN,
-                connectionStatus = "Disconnected"
-            )
-            is ConnectionState.Error -> ConnectionUiState(
-                serverUrl = BuildConfig.HA_SERVER_URL,
-                token = BuildConfig.HA_TOKEN,
-                error = connectionState.message,
-                connectionStatus = "Error"
+                token = BuildConfig.HA_TOKEN
             )
         }
-    }.stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
-        ConnectionUiState(
-            serverUrl = BuildConfig.HA_SERVER_URL,
-            token = BuildConfig.HA_TOKEN,
-            isLoading = true
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = ConnectionUiState.initial(
+                serverUrl = BuildConfig.HA_SERVER_URL,
+                token = BuildConfig.HA_TOKEN
+            )
         )
-    )
 
     init {
         webSocket.connect(BuildConfig.HA_SERVER_URL, BuildConfig.HA_TOKEN)
