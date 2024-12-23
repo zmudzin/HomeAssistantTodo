@@ -1,12 +1,13 @@
-package com.example.homeassistanttodo.data.websocket
+package com.example.homeassistanttodo.data.websocket.models
 
 import com.example.homeassistanttodo.ui.connection.ConnectionUiState
 
-sealed class ConnectionState {
-    object Disconnected : ConnectionState()
-    object Connected : ConnectionState()
-    object Authenticated : ConnectionState()
-    data class Error(val message: String) : ConnectionState()
+sealed class WebSocketConnectionState {
+    object Disconnected : WebSocketConnectionState()
+    object Connected : WebSocketConnectionState()
+    object Authenticated : WebSocketConnectionState()
+    data class Error(val message: String) : WebSocketConnectionState()
+    data class Reconnecting(val attempt: Int) : WebSocketConnectionState()
 
     fun toUiState(serverUrl: String, token: String): ConnectionUiState {
         return when (this) {
@@ -30,6 +31,11 @@ sealed class ConnectionState {
                 token = token,
                 error = message,
                 connectionStatus = "Error"
+            )
+            is Reconnecting -> ConnectionUiState(
+                serverUrl = serverUrl,
+                token = token,
+                connectionStatus = "Reconnecting attempt $attempt"
             )
         }
     }
