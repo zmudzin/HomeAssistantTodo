@@ -27,6 +27,14 @@ android {
 
         buildConfigField("String", "HA_SERVER_URL", "\"${localProperties.getProperty("HA_SERVER_URL")}\"")
         buildConfigField("String", "HA_TOKEN", "\"${localProperties.getProperty("HA_TOKEN")}\"")
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments += mapOf(
+                    "room.schemaLocation" to "$projectDir/schemas",
+                    "room.incremental" to "true"
+                )
+            }
+        }
     }
 
     buildTypes {

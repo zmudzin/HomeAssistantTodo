@@ -5,6 +5,11 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.homeassistanttodo.BuildConfig
+import com.example.homeassistanttodo.data.local.entity.TodoItem
+import com.example.homeassistanttodo.data.local.entity.TodoItemStatus
+import com.example.homeassistanttodo.data.model.TodoListResponse
+import com.example.homeassistanttodo.data.model.TodoWebSocketItem
+import com.example.homeassistanttodo.data.repository.TodoRepository
 import com.example.homeassistanttodo.data.websocket.core.HomeAssistantWebSocket
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -12,11 +17,13 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
 class ConnectionViewModel @Inject constructor(
-    private val webSocket: HomeAssistantWebSocket
+    private val webSocket: HomeAssistantWebSocket,
+    private val todoRepository: TodoRepository
 ) : ViewModel() {
 
     val uiState = webSocket.connectionState
@@ -39,22 +46,22 @@ class ConnectionViewModel @Inject constructor(
         viewModelScope.launch {
             webSocket.connect(BuildConfig.HA_SERVER_URL, BuildConfig.HA_TOKEN)
 
-//            viewModelScope.launch {
-//                delay(4000)
-//                val result = webSocket.subscribeToEvents("state_changed")
-//                result.onSuccess { subscriptionId ->
-//                    Log.d(TAG, "Subscribed to state changes. ID: $subscriptionId")
-//                }.onFailure { error ->
-//                    Log.e(TAG, "Subscription failed", error)
-//                }
-//            }
+
             viewModelScope.launch {
                 delay(3000)
                 val result = webSocket.getShoppingListItems()
-                result.onSuccess { subscriptionId ->
-                    Log.d(TAG, "wysłano zapytanie o todo: $subscriptionId")
-                }.onFailure { error ->
-                    Log.e(TAG, "Skurwiaj", error)
+                result.onSuccess { items ->
+                    val todoListResponse = TodoListResponse(
+                        items = items.map { summary ->
+                            TodoWebSocketItem(
+                                uid = UUID.randomUUID().toString(),
+                                summary = summary,
+                                status = "needs_action",
+                                order = 0
+                            )
+                        }
+                    )
+                    todoRepository.updateTodoItems(todoListResponse)
                 }
             }
             webSocket.registerEventCallback("state_changes") { event ->
