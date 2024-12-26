@@ -2,7 +2,7 @@ package com.example.homeassistanttodo.data.websocket.commands
 
 class GetTodoListCommand(
     override val id: Int,
-    val entityId: String = "todo.lista_zakupow" // domyślnie lista zakupów, ale można przekazać inną
+    val entityId: String = "todo.lista_zakupow"
 ) : Command {
     override val type: String = "call_service"
 

@@ -6,11 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.homeassistanttodo.BuildConfig
 import com.example.homeassistanttodo.data.websocket.core.HomeAssistantWebSocket
+import com.example.homeassistanttodo.data.websocket.models.WebSocketConnectionState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -38,39 +37,38 @@ class ConnectionViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             webSocket.connect(BuildConfig.HA_SERVER_URL, BuildConfig.HA_TOKEN)
+        }
 
-//            viewModelScope.launch {
-//                delay(4000)
-//                val result = webSocket.subscribeToEvents("state_changed")
-//                result.onSuccess { subscriptionId ->
-//                    Log.d(TAG, "Subscribed to state changes. ID: $subscriptionId")
-//                }.onFailure { error ->
-//                    Log.e(TAG, "Subscription failed", error)
-//                }
-//            }
-
-            viewModelScope.launch {
-                delay(3000) // Krótkie opóźnienie po połączeniu
-                val createResult = webSocket.createTodoItem("todo.lista_zakupow", "Nowe zadanie testowe")
-                createResult.onSuccess { newItem ->
-                    Log.d(TAG, "Utworzono zadanie: ${newItem.summary}, UID: ${newItem.uid}")
-                }.onFailure { error ->
-                    Log.e(TAG, "Błąd tworzenia zadania", error)
+        // Monitorowanie stanu połączenia i uruchamianie akcji po nawiązaniu połączenia
+        viewModelScope.launch {
+            webSocket.connectionState
+                .filter { it is WebSocketConnectionState.Connected }
+                .collect { state ->
+                    // Akcja po nawiązaniu połączenia
+                    onConnected()
                 }
-            }
+        }
+    }
 
-            viewModelScope.launch {
-                delay(3000)
-                val result = webSocket.getShoppingListItems()
-                result.onSuccess { subscriptionId ->
-                    Log.d(TAG, "wysłano zapytanie o todo: $subscriptionId")
-                }.onFailure { error ->
-                    Log.e(TAG, "Skurwiaj", error)
-                }
-            }
-            webSocket.registerEventCallback("state_changes") { event ->
-                Log.d(TAG, "State changed: ${event.event}")
-            }
+    private suspend fun onConnected() {
+        // Przykładowe akcje po nawiązaniu połączenia
+        delay(2000)
+        val result = webSocket.getShoppingListItems()
+        result.onSuccess { items ->
+            Log.d(TAG, "Wysłano zapytanie o todo: $items")
+        }.onFailure { error ->
+            Log.e(TAG, "Wystąpił błąd", error)
+        }
+
+        val subscribeResult = webSocket.subscribeToEvents("state_changed")
+        subscribeResult.onSuccess { subscriptionId ->
+            Log.d(TAG, "Subskrybuj zmiany stanu. ID: $subscriptionId")
+        }.onFailure { error ->
+            Log.e(TAG, "Subskrypcja nie powiodła się", error)
+        }
+
+        webSocket.registerEventCallback("state_changes") { event ->
+            Log.d(TAG, "Zmiana stanu: ${event.event}")
         }
     }
 

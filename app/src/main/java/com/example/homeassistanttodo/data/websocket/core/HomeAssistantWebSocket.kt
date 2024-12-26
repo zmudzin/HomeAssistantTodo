@@ -13,14 +13,17 @@ import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
-class HomeAssistantWebSocket @Inject constructor(
+class HomeAssistantWebSocket @OptIn(ExperimentalCoroutinesApi::class)
+@Inject constructor(
     private val connectionManager: ConnectionManager,
     private val messageManager: MessageManager,
     private val pingPongManager: PingPongManager,
@@ -33,12 +36,13 @@ class HomeAssistantWebSocket @Inject constructor(
     private val eventCallbacks = WebSocketCallback<WebSocketMessage.Event>()
 
     override val connectionState: StateFlow<WebSocketConnectionState> = connectionManager.connectionState
+    @OptIn(ExperimentalCoroutinesApi::class)
     override val events: SharedFlow<WebSocketMessage.Event> = messageManager.events
 
     init {
         connectionManager.setCallbacks(
-            onMessage = { message -> 
-                scope.launch { 
+            onMessage = { message ->
+                scope.launch {
                     currentApiToken?.let { token ->
                         messageManager.handleMessage(message, token)
                     }
@@ -69,7 +73,7 @@ class HomeAssistantWebSocket @Inject constructor(
 
     override suspend fun getTodoItems(entityId: String): Result<List<TodoItem>> {
         val result = messageManager.executeCommand(GetTodoListCommand(messageId++, entityId))
-        return result.map { jsonElement -> 
+        return result.map { jsonElement ->
             TodoResponseMapper.mapTodoItems(jsonElement, entityId)
         }
     }
