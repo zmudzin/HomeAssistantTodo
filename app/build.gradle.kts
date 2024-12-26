@@ -54,6 +54,14 @@ android {
         kotlinCompilerExtensionVersion = "1.5.8"
     }
     buildToolsVersion = "34.0.0"
+
+    // Dodane dla testów
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 dependencies {
@@ -80,11 +88,32 @@ dependencies {
     ksp("com.google.dagger:hilt-compiler:2.50")
     ksp("androidx.room:room-compiler:2.6.1")
 
+    // Test dependencies
     testImplementation(libs.junit)
+    
+    // Mockk
+    testImplementation("io.mockk:mockk:1.13.9")
+    testImplementation("io.mockk:mockk-android:1.13.9")
+    testImplementation("io.mockk:mockk-agent:1.13.9")
+    
+    // Coroutines testing
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
+    testImplementation("app.cash.turbine:turbine:1.0.0")
+    
+    // Android testing
+    testImplementation("androidx.test:core:1.5.0")
+    testImplementation("androidx.test:runner:1.5.0")
+    testImplementation("androidx.test.ext:junit:1.1.5")
+    testImplementation("androidx.test.ext:truth:1.5.0")
+    testImplementation("com.google.truth:truth:1.1.5")
+    testImplementation("org.robolectric:robolectric:4.11.1")
+    
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.ui.test.junit4)
     androidTestImplementation(platform(libs.androidx.compose.bom))
+    
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }

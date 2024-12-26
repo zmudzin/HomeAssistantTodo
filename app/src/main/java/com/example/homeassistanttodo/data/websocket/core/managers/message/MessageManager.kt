@@ -3,12 +3,14 @@ package com.example.homeassistanttodo.data.websocket.core.managers.message
 import com.example.homeassistanttodo.data.websocket.WebSocketMessage
 import com.example.homeassistanttodo.data.websocket.commands.Command
 import com.google.gson.JsonElement
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharedFlow
 
 /**
  * Interfejs odpowiedzialny za zarządzanie komunikacją WebSocket.
  * Obsługuje przychodzące wiadomości, kolejkowanie komend i zarządzanie eventami.
  */
+@ExperimentalCoroutinesApi
 interface MessageManager {
     /**
      * Strumień zdarzeń WebSocket

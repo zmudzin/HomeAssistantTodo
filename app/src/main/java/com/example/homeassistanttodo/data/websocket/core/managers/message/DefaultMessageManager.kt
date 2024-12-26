@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class DefaultMessageManager @Inject constructor(
     private val gson: Gson,
@@ -39,14 +40,6 @@ class DefaultMessageManager @Inject constructor(
 
     private var messageProcessingJob: Job? = null
     private var isAuthenticated = false
-
-    override fun registerEventCallback(key: String, callback: (WebSocketMessage.Event) -> Unit) {
-        eventCallbacks.register(key, callback)
-    }
-
-    override fun unregisterEventCallback(key: String) {
-        eventCallbacks.unregister(key)
-    }
 
     override suspend fun handleMessage(message: String, apiToken: String) {
         try {
@@ -147,6 +140,14 @@ class DefaultMessageManager @Inject constructor(
             Log.e(TAG, "Command execution error (${command::class.simpleName})", e)
             Result.failure(e)
         }
+    }
+
+    override fun registerEventCallback(key: String, callback: (WebSocketMessage.Event) -> Unit) {
+        eventCallbacks.register(key, callback)
+    }
+
+    override fun unregisterEventCallback(key: String) {
+        eventCallbacks.unregister(key)
     }
 
     private fun shouldQueueCommand(command: Command): Boolean =
