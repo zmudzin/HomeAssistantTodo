@@ -1,0 +1,17 @@
+package com.example.homeassistanttodo.data.websocket.commands
+
+class GetTodoListCommand(
+    override val id: Int,
+    val entityId: String = "todo.lista_zakupow" // domyślnie lista zakupów, ale można przekazać inną
+) : Command {
+    override val type: String = "call_service"
+
+    override fun toJson() = mapOf(
+        "id" to id,
+        "type" to type,
+        "domain" to "todo",
+        "service" to "get_items",
+        "target" to mapOf("entity_id" to entityId),
+        "return_response" to true
+    )
+}

@@ -124,7 +124,10 @@ class DefaultMessageManager @Inject constructor(
             val commandId = if (command is AuthCommand) 0 else commandIdManager.getNextId()
             val commandWithId = when (command) {
                 is PingCommand -> PingCommand(commandId)
-                is GetShoppingListCommand -> GetShoppingListCommand(commandId)
+                is GetTodoListCommand -> GetTodoListCommand(commandId, command.entityId)
+                is CreateTodoItemCommand -> CreateTodoItemCommand(commandId, command.entityId, command.summary)
+                is UpdateTodoItemCommand -> UpdateTodoItemCommand(commandId, command.entityId, command.uid, command.status)
+                is DeleteTodoItemCommand -> DeleteTodoItemCommand(commandId, command.entityId, command.uid)
                 is SubscribeEventsCommand -> SubscribeEventsCommand(commandId, command.eventType)
                 is AuthCommand -> command
                 else -> command
