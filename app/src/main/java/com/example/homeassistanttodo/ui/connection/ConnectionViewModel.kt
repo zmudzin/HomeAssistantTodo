@@ -39,15 +39,15 @@ class ConnectionViewModel @Inject constructor(
         viewModelScope.launch {
             webSocket.connect(BuildConfig.HA_SERVER_URL, BuildConfig.HA_TOKEN)
 
-//            viewModelScope.launch {
-//                delay(4000)
-//                val result = webSocket.subscribeToEvents("state_changed")
-//                result.onSuccess { subscriptionId ->
-//                    Log.d(TAG, "Subscribed to state changes. ID: $subscriptionId")
-//                }.onFailure { error ->
-//                    Log.e(TAG, "Subscription failed", error)
-//                }
-//            }
+            viewModelScope.launch {
+                delay(4000)
+                val result = webSocket.subscribeToEvents("state_changed")
+                result.onSuccess { subscriptionId ->
+                    Log.d(TAG, "Subscribed to state changes. ID: $subscriptionId")
+                }.onFailure { error ->
+                    Log.e(TAG, "Subscription failed", error)
+                }
+            }
             viewModelScope.launch {
                 delay(3000)
                 val result = webSocket.getShoppingListItems()

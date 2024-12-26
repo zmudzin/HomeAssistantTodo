@@ -2,6 +2,7 @@ package com.example.homeassistanttodo.data.websocket.core.managers.connection
 
 import android.util.Log
 import com.example.homeassistanttodo.data.websocket.models.WebSocketConnectionState
+import com.example.homeassistanttodo.data.websocket.core.managers.message.CommandIdManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,7 +14,8 @@ import javax.inject.Inject
 import kotlin.math.min
 
 class DefaultConnectionManager @Inject constructor(
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val commandIdManager: CommandIdManager
 ) : ConnectionManager {
     companion object {
         private const val TAG = "DefaultConnectionManager"
@@ -43,6 +45,7 @@ class DefaultConnectionManager @Inject constructor(
         disconnect()
         reconnectAttempt = 0
         currentApiToken = apiToken
+        commandIdManager.reset()  // Reset command IDs on new connection
         initializeWebSocket(serverUrl)
     }
 
@@ -50,6 +53,7 @@ class DefaultConnectionManager @Inject constructor(
         wsClient?.close()
         wsClient = null
         currentApiToken = null
+        commandIdManager.reset()  // Reset command IDs on disconnect
         updateConnectionState(WebSocketConnectionState.Disconnected)
     }
 
@@ -62,6 +66,8 @@ class DefaultConnectionManager @Inject constructor(
                 kotlinx.coroutines.delay(delay)
                 connect(serverUrl, apiToken)
             }
+        } else {
+            updateConnectionState(WebSocketConnectionState.Error("Max reconnection attempts reached"))
         }
     }
 

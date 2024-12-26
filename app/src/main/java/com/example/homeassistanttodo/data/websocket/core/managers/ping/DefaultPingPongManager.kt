@@ -3,19 +3,20 @@ package com.example.homeassistanttodo.data.websocket.core.managers.ping
 import android.util.Log
 import com.example.homeassistanttodo.data.websocket.commands.PingCommand
 import com.example.homeassistanttodo.data.websocket.core.managers.message.MessageManager
-import com.example.homeassistanttodo.data.websocket.models.WebSocketConnectionState
+import com.example.homeassistanttodo.data.websocket.core.managers.message.CommandIdManager
 import kotlinx.coroutines.*
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 
 class DefaultPingPongManager @Inject constructor(
     private val scope: CoroutineScope,
-    private val messageManager: MessageManager
+    private val messageManager: MessageManager,
+    private val commandIdManager: CommandIdManager
 ) : PingPongManager {
 
     private var pingJob: Job? = null
     private val lastPongTime = AtomicLong(System.currentTimeMillis())
-    private var messageId = 0
+    private var lastPingResult: Result<*>? = null
 
     override fun startPingPong() {
         pingJob?.cancel()
@@ -35,6 +36,7 @@ class DefaultPingPongManager @Inject constructor(
     override fun stopPingPong() {
         pingJob?.cancel()
         pingJob = null
+        lastPingResult = null
     }
 
     override fun handlePong() {
@@ -45,7 +47,11 @@ class DefaultPingPongManager @Inject constructor(
     override fun sendPing() {
         scope.launch {
             try {
-                messageManager.executeCommand(PingCommand(++messageId))
+                val commandId = commandIdManager.getNextId()
+                lastPingResult = messageManager.executeCommand(PingCommand(commandId))
+                if (lastPingResult?.isFailure == true) {
+                    Log.e(TAG, "Ping failed", lastPingResult?.exceptionOrNull())
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error sending ping", e)
             }

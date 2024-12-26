@@ -5,6 +5,7 @@ import com.example.homeassistanttodo.data.websocket.WebSocketMessage
 import com.example.homeassistanttodo.data.websocket.commands.*
 import com.example.homeassistanttodo.data.websocket.core.WebSocketCallback
 import com.example.homeassistanttodo.data.websocket.core.managers.connection.ConnectionManager
+import com.example.homeassistanttodo.data.websocket.commands.ResponseMapper
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
@@ -20,7 +21,8 @@ import javax.inject.Singleton
 class DefaultMessageManager @Inject constructor(
     private val gson: Gson,
     private val scope: CoroutineScope,
-    private val connectionManager: ConnectionManager
+    private val connectionManager: ConnectionManager,
+    private val commandIdManager: CommandIdManager
 ) : MessageManager {
 
     companion object {
@@ -30,32 +32,44 @@ class DefaultMessageManager @Inject constructor(
     }
 
     private val messageQueue = Channel<Command>(Channel.BUFFERED)
-    private val pendingCommands = mutableMapOf<Int, CompletableDeferred<WebSocketMessage.Result>>()
+    private val pendingCommands = mutableMapOf<Int, CompletableDeferred<WebSocketMessage>>()
     private val eventCallbacks = WebSocketCallback<WebSocketMessage.Event>()
-    
+    private val _events = MutableSharedFlow<WebSocketMessage.Event>()
+    override val events: SharedFlow<WebSocketMessage.Event> = _events.asSharedFlow()
+
     private var messageProcessingJob: Job? = null
     private var isAuthenticated = false
 
-    private val _events = MutableSharedFlow<WebSocketMessage.Event>()
-    override val events: SharedFlow<WebSocketMessage.Event> = _events.asSharedFlow()
+    override fun registerEventCallback(key: String, callback: (WebSocketMessage.Event) -> Unit) {
+        eventCallbacks.register(key, callback)
+    }
+
+    override fun unregisterEventCallback(key: String) {
+        eventCallbacks.unregister(key)
+    }
 
     override suspend fun handleMessage(message: String, apiToken: String) {
         try {
             Log.d(TAG, "Received message: $message")
             val jsonMessage = gson.fromJson(message, JsonObject::class.java)
-            processMessage(jsonMessage, apiToken)
+            val parsedMessage = ResponseMapper.mapResponse(jsonMessage)
+            
+            when (parsedMessage) {
+                is WebSocketMessage.Result -> handleResult(parsedMessage)
+                is WebSocketMessage.Event -> handleEvent(parsedMessage)
+                is WebSocketMessage.Pong -> handlePong(parsedMessage)
+                null -> handleUnknownMessage(jsonMessage, apiToken)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling message", e)
         }
     }
 
-    private suspend fun processMessage(jsonMessage: JsonObject, apiToken: String) {
+    private suspend fun handleUnknownMessage(jsonMessage: JsonObject, apiToken: String) {
         when (jsonMessage.get("type").asString) {
             "auth_required" -> handleAuthRequired(apiToken)
             "auth_ok" -> handleAuthOk()
             "auth_invalid" -> handleAuthInvalid()
-            "result" -> handleResult(jsonMessage)
-            "event" -> handleEvent(jsonMessage)
         }
     }
 
@@ -76,14 +90,19 @@ class DefaultMessageManager @Inject constructor(
         isAuthenticated = false
     }
 
-    private suspend fun handleResult(jsonMessage: JsonObject) {
-        val id = jsonMessage.get("id").asInt
-        Log.d(TAG, "Received result for command $id: $jsonMessage")
-        pendingCommands[id]?.complete(gson.fromJson(jsonMessage, WebSocketMessage.Result::class.java))
+    private suspend fun handleResult(result: WebSocketMessage.Result) {
+        Log.d(TAG, "Received result for command ${result.id}: $result")
+        pendingCommands[result.id]?.complete(result)
+        pendingCommands.remove(result.id)
     }
 
-    private suspend fun handleEvent(jsonMessage: JsonObject) {
-        val event = gson.fromJson(jsonMessage, WebSocketMessage.Event::class.java)
+    private suspend fun handlePong(pong: WebSocketMessage.Pong) {
+        Log.d(TAG, "Received pong for command ${pong.id}")
+        pendingCommands[pong.id]?.complete(pong)
+        pendingCommands.remove(pong.id)
+    }
+
+    private suspend fun handleEvent(event: WebSocketMessage.Event) {
         Log.d(TAG, "Received event: $event")
         _events.emit(event)
         eventCallbacks.notify(event)
@@ -93,7 +112,6 @@ class DefaultMessageManager @Inject constructor(
         try {
             while (isAuthenticated) {
                 val command = messageQueue.tryReceive().getOrNull() ?: break
-                Log.d(TAG, "Processing queued command: ${command::class.simpleName} with id: ${command.id}")
                 executeCommand(command)
             }
         } catch (e: Exception) {
@@ -103,15 +121,24 @@ class DefaultMessageManager @Inject constructor(
 
     override suspend fun executeCommand(command: Command): Result<JsonElement?> {
         return try {
-            Log.d(TAG, "Executing command: ${command::class.simpleName} with id: ${command.id}")
+            val commandId = if (command is AuthCommand) 0 else commandIdManager.getNextId()
+            val commandWithId = when (command) {
+                is PingCommand -> PingCommand(commandId)
+                is GetShoppingListCommand -> GetShoppingListCommand(commandId)
+                is SubscribeEventsCommand -> SubscribeEventsCommand(commandId, command.eventType)
+                is AuthCommand -> command
+                else -> command
+            }
+
+            Log.d(TAG, "Executing command: ${commandWithId::class.simpleName} with id: $commandId")
             
-            if (shouldQueueCommand(command)) {
-                queueCommand(command)
+            if (shouldQueueCommand(commandWithId)) {
+                queueCommand(commandWithId)
                 return Result.success(null)
             }
 
-            val result = sendCommandAndAwaitResponse(command)
-            Log.d(TAG, "Command ${command.id} completed with result: $result")
+            val result = sendCommandAndAwaitResponse(commandWithId)
+            Log.d(TAG, "Command $commandId completed with result: $result")
             result
         } catch (e: Exception) {
             Log.e(TAG, "Command execution error (${command::class.simpleName})", e)
@@ -139,9 +166,9 @@ class DefaultMessageManager @Inject constructor(
         return processCommandResponse(response)
     }
 
-    private fun setupCommandDeferred(command: Command): CompletableDeferred<WebSocketMessage.Result>? {
+    private fun setupCommandDeferred(command: Command): CompletableDeferred<WebSocketMessage>? {
         return if (command.id != 0) {
-            CompletableDeferred<WebSocketMessage.Result>().also {
+            CompletableDeferred<WebSocketMessage>().also {
                 pendingCommands[command.id] = it
             }
         } else null
@@ -161,19 +188,25 @@ class DefaultMessageManager @Inject constructor(
 
     private suspend fun awaitCommandResponse(
         command: Command,
-        deferred: CompletableDeferred<WebSocketMessage.Result>?
-    ): WebSocketMessage.Result {
+        deferred: CompletableDeferred<WebSocketMessage>?
+    ): WebSocketMessage {
         return withTimeout(COMMAND_TIMEOUT) {
             Log.d(TAG, "Waiting for response to command ${command.id}")
             deferred?.await() ?: throw IllegalStateException("No deferred for command ${command.id}")
         }
     }
 
-    private fun processCommandResponse(response: WebSocketMessage.Result): Result<JsonElement?> {
-        return if (response.success) {
-            Result.success(response.result)
-        } else {
-            Result.failure(Exception(response.error?.get("message")?.asString ?: "Unknown error"))
+    private fun processCommandResponse(response: WebSocketMessage): Result<JsonElement?> {
+        return when (response) {
+            is WebSocketMessage.Result -> {
+                if (response.success) {
+                    Result.success(response.result)
+                } else {
+                    Result.failure(Exception(response.error?.get("message")?.asString ?: "Unknown error"))
+                }
+            }
+            is WebSocketMessage.Pong -> Result.success(null)
+            else -> Result.failure(Exception("Unexpected response type"))
         }
     }
 
@@ -194,13 +227,7 @@ class DefaultMessageManager @Inject constructor(
         messageProcessingJob?.cancel()
         messageProcessingJob = null
         isAuthenticated = false
-    }
-
-    override fun registerEventCallback(key: String, callback: (WebSocketMessage.Event) -> Unit) {
-        eventCallbacks.register(key, callback)
-    }
-
-    override fun unregisterEventCallback(key: String) {
-        eventCallbacks.unregister(key)
+        pendingCommands.clear()
+        commandIdManager.reset()
     }
 }

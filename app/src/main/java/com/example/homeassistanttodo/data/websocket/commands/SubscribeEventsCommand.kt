@@ -2,7 +2,7 @@ package com.example.homeassistanttodo.data.websocket.commands
 
 class SubscribeEventsCommand(
     override val id: Int,
-    private val eventType: String?
+    val eventType: String? // Zmienione z private na public
 ) : Command {
     override val type: String = "subscribe_events"
 
