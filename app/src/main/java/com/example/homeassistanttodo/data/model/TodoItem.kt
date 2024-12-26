@@ -6,7 +6,9 @@ data class TodoItem(
     val status: String,
     val listId: String, // ID listy do której należy zadanie
     val lastChanged: String? = null,
-    val lastUpdated: String? = null
+    val lastUpdated: String? = null,
+    val due: String? = null,           // Opcjonalny termin
+    val description: String? = null     // Opcjonalny opis
 )
 
 enum class TodoStatus {

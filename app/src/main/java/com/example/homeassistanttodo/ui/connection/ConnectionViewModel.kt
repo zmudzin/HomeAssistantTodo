@@ -39,15 +39,26 @@ class ConnectionViewModel @Inject constructor(
         viewModelScope.launch {
             webSocket.connect(BuildConfig.HA_SERVER_URL, BuildConfig.HA_TOKEN)
 
+//            viewModelScope.launch {
+//                delay(4000)
+//                val result = webSocket.subscribeToEvents("state_changed")
+//                result.onSuccess { subscriptionId ->
+//                    Log.d(TAG, "Subscribed to state changes. ID: $subscriptionId")
+//                }.onFailure { error ->
+//                    Log.e(TAG, "Subscription failed", error)
+//                }
+//            }
+
             viewModelScope.launch {
-                delay(4000)
-                val result = webSocket.subscribeToEvents("state_changed")
-                result.onSuccess { subscriptionId ->
-                    Log.d(TAG, "Subscribed to state changes. ID: $subscriptionId")
+                delay(3000) // Krótkie opóźnienie po połączeniu
+                val createResult = webSocket.createTodoItem("todo.lista_zakupow", "Nowe zadanie testowe")
+                createResult.onSuccess { newItem ->
+                    Log.d(TAG, "Utworzono zadanie: ${newItem.summary}, UID: ${newItem.uid}")
                 }.onFailure { error ->
-                    Log.e(TAG, "Subscription failed", error)
+                    Log.e(TAG, "Błąd tworzenia zadania", error)
                 }
             }
+
             viewModelScope.launch {
                 delay(3000)
                 val result = webSocket.getShoppingListItems()

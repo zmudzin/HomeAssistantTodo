@@ -61,7 +61,6 @@ class HomeAssistantWebSocket @Inject constructor(
         connectionManager.disconnect()
     }
 
-    // Legacy method - do usunięcia po migracji
     override suspend fun getShoppingListItems(): Result<List<String>> {
         return getTodoItems("todo.lista_zakupow").map { items ->
             items.map { it.summary }
@@ -76,19 +75,68 @@ class HomeAssistantWebSocket @Inject constructor(
     }
 
     override suspend fun createTodoItem(entityId: String, summary: String): Result<TodoItem> {
-        val result = messageManager.executeCommand(CreateTodoItemCommand(messageId++, entityId, summary))
-        return result.map { jsonElement ->
-            TodoResponseMapper.mapTodoItem(jsonElement, entityId)
+        // 1. Utwórz nowe zadanie
+        messageManager.executeCommand(
+            CreateTodoItemCommand(
+                messageId++,
+                entityId,
+                summary,
+                null,
+                null
+            )
+        ).getOrThrow() // Upewnij się, że zadanie zostało utworzone
+
+        // 2. Pobierz aktualną listę zadań
+        val todoListResult = getTodoItems(entityId)
+        return todoListResult.map { items ->
+            // 3. Znajdź nowo utworzone zadanie (ostatnie z podanym summary)
+            items.findLast { it.summary == summary }
                 ?: throw IllegalStateException("Failed to create todo item")
         }
     }
 
-    override suspend fun updateTodoItemStatus(entityId: String, uid: String, status: String): Result<TodoItem> {
-        val result = messageManager.executeCommand(UpdateTodoItemCommand(messageId++, entityId, uid, status))
-        return result.map { jsonElement ->
-            TodoResponseMapper.mapTodoItem(jsonElement, entityId)
+    override suspend fun updateTodoItemStatus(
+        entityId: String,
+        uid: String,
+        status: String,
+        description: String?,
+        due: String?
+    ): Result<TodoItem> {
+        val result = messageManager.executeCommand(
+            UpdateTodoItemCommand(
+                messageId++,
+                entityId,
+                uid,
+                status
+            )
+        )
+        // Po aktualizacji statusu, pobierz aktualną listę zadań
+        return result.map {
+            getTodoItems(entityId).getOrThrow()
+                .find { it.uid == uid }
                 ?: throw IllegalStateException("Failed to update todo item")
         }
+    }
+
+    override suspend fun updateTodoItem(
+        entityId: String,
+        uid: String,
+        summary: String?,
+        status: String?,
+        description: String?,
+        due: String?
+    ): Result<TodoItem> {
+        // 1. Pobierz obecne zadanie
+        val currentItem = getTodoItems(entityId)
+            .getOrNull()
+            ?.firstOrNull { it.uid == uid }
+            ?: throw IllegalStateException("Nie znaleziono zadania")
+
+        // 2. Utwórz nowe zadanie z zaktualizowanymi danymi
+        return createTodoItem(
+            entityId = entityId,
+            summary = summary ?: currentItem.summary
+        )
     }
 
     override suspend fun deleteTodoItem(entityId: String, uid: String): Result<Unit> {
@@ -99,7 +147,6 @@ class HomeAssistantWebSocket @Inject constructor(
     override suspend fun subscribeTodoChanges(entityId: String): Result<Int> {
         return subscribeToEvents("state_changed")
             .map { subscriptionId ->
-                // Filtrowanie eventów po entity_id będzie się odbywać w repository
                 subscriptionId
             }
     }

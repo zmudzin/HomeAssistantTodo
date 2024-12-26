@@ -12,17 +12,26 @@ interface WebSocketService {
 
     suspend fun connect(serverUrl: String, apiToken: String)
     suspend fun disconnect()
-    
+
     // Todo operations
     suspend fun getTodoItems(entityId: String): Result<List<TodoItem>>
     suspend fun createTodoItem(entityId: String, summary: String): Result<TodoItem>
-    suspend fun updateTodoItemStatus(entityId: String, uid: String, status: String): Result<TodoItem>
+    suspend fun updateTodoItemStatus(entityId: String, uid: String, status: String,description: String? = null,due: String? = null): Result<TodoItem>
     suspend fun deleteTodoItem(entityId: String, uid: String): Result<Unit>
     suspend fun subscribeTodoChanges(entityId: String): Result<Int>
+    suspend fun updateTodoItem(
+        entityId: String,
+        uid: String,
+        summary: String? = null,
+        status: String? = null,
+        description: String? = null,
+        due: String? = null
+    ): Result<TodoItem>
+
 
     // Legacy operations - do usunięcia po pełnej migracji
     suspend fun getShoppingListItems(): Result<List<String>>
-    
+
     // Base operations
     suspend fun subscribeToEvents(eventType: String?): Result<Int>
     suspend fun sendCommand(command: String, parameters: Map<String, Any>?): Result<JsonElement?>
