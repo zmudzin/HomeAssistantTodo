@@ -11,7 +11,7 @@ import com.example.homeassistanttodo.data.websocket.mapper.TodoResponseMapper
 import com.example.homeassistanttodo.data.websocket.models.WebSocketConnectionState
 import com.google.gson.Gson
 import com.google.gson.JsonElement
-import com.google.gson.JsonObject
+import com.google.gson.JsonNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.StateFlow
@@ -141,6 +141,22 @@ class HomeAssistantWebSocket @OptIn(ExperimentalCoroutinesApi::class)
             entityId = entityId,
             summary = summary ?: currentItem.summary
         )
+    }
+
+    override suspend fun moveTodoItem(entityId: String, uid: String, previousUid: String?): Result<List<TodoItem>> {
+        val serviceData: Map<String, Any> = mapOf(
+            "entity_id" to entityId,
+            "uid" to uid,
+            "previous_uid" to (previousUid ?: JsonNull.INSTANCE)
+        )
+
+        val result = messageManager.executeCommand(
+            MoveTodoItemCommand(messageId++, serviceData = serviceData)
+        )
+
+        return result.map { 
+            getTodoItems(entityId).getOrThrow()
+        }
     }
 
     override suspend fun deleteTodoItem(entityId: String, uid: String): Result<Unit> {

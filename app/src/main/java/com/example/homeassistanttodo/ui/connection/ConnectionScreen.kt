@@ -1,5 +1,6 @@
 package com.example.homeassistanttodo.ui.connection
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
@@ -14,7 +15,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun ConnectionScreen(
     viewModel: ConnectionViewModel = hiltViewModel(),
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onNavigateToTodo: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -41,7 +43,9 @@ fun ConnectionScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = uiState.isConnected) { onNavigateToTodo() },
                 colors = CardDefaults.cardColors(
                     containerColor = when {
                         uiState.isError -> MaterialTheme.colorScheme.errorContainer

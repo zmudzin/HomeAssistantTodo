@@ -27,7 +27,7 @@ interface WebSocketService {
         description: String? = null,
         due: String? = null
     ): Result<TodoItem>
-
+    suspend fun moveTodoItem(entityId: String, uid: String, previousUid: String?): Result<List<TodoItem>>
 
     // Legacy operations - do usunięcia po pełnej migracji
     suspend fun getShoppingListItems(): Result<List<String>>

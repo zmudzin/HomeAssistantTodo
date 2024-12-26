@@ -2,5 +2,6 @@ package com.example.homeassistanttodo.ui.navigation
 
 sealed class Screen(val route: String) {
     object Connection : Screen("connection")
-    object ServerSettings : Screen("settings")
+    object Settings : Screen("settings")
+    object Todo : Screen("todo")
 }
