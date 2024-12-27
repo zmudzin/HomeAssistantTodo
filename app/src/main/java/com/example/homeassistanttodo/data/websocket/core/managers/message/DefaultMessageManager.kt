@@ -120,7 +120,7 @@ class DefaultMessageManager @Inject constructor(
                 is GetTodoListCommand -> GetTodoListCommand(commandId, command.entityId)
                 is CreateTodoItemCommand -> CreateTodoItemCommand(commandId, command.entityId, command.summary)
                 is UpdateTodoItemCommand -> UpdateTodoItemCommand(commandId, command.entityId, command.uid, command.status)
-                is DeleteTodoItemCommand -> DeleteTodoItemCommand(commandId, command.entityId, command.uid)
+                is DeleteTodoItemCommand -> DeleteTodoItemCommand(commandId, command.entityId, command.itemId )
                 is SubscribeEventsCommand -> SubscribeEventsCommand(commandId, command.eventType)
                 is AuthCommand -> command
                 else -> command

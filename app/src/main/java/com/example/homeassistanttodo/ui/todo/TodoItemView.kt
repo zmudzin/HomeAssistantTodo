@@ -70,7 +70,7 @@ fun TodoItemView(
             IconButton(
                 onClick = onDelete,
                 colors = IconButtonDefaults.iconButtonColors(
-                    contentColor = colorScheme.error
+                    contentColor = colorScheme.primary
                 )
             ) {
                 Icon(
