@@ -102,19 +102,17 @@ class HomeAssistantWebSocket @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun updateTodoItemStatus(
         entityId: String,
         uid: String,
-        status: String,
-        description: String?,
-        due: String?
+        status: String
     ): Result<TodoItem> {
         val result = messageManager.executeCommand(
             UpdateTodoItemCommand(
                 messageId++,
                 entityId,
                 uid,
-                status
+                status = status
             )
         )
-        // Po aktualizacji statusu, pobierz aktualną listę zadań
+
         return result.map {
             getTodoItems(entityId).getOrThrow()
                 .find { it.uid == uid }
@@ -126,21 +124,29 @@ class HomeAssistantWebSocket @OptIn(ExperimentalCoroutinesApi::class)
         entityId: String,
         uid: String,
         summary: String?,
-        status: String?,
         description: String?,
         due: String?
     ): Result<TodoItem> {
-        // 1. Pobierz obecne zadanie
-        val currentItem = getTodoItems(entityId)
-            .getOrNull()
-            ?.firstOrNull { it.uid == uid }
-            ?: throw IllegalStateException("Nie znaleziono zadania")
+        val rename = summary ?: return getTodoItems(entityId).map {
+            it.find { item -> item.uid == uid }
+                ?: throw IllegalStateException("Failed to update todo item")
+        }
 
-        // 2. Utwórz nowe zadanie z zaktualizowanymi danymi
-        return createTodoItem(
-            entityId = entityId,
-            summary = summary ?: currentItem.summary
-        )
+        return messageManager.executeCommand(
+            UpdateTodoItemCommand(
+                messageId++,
+                entityId,
+                uid,
+                rename,
+                null,
+                description,
+                due
+            )
+        ).map {
+            getTodoItems(entityId).getOrThrow()
+                .find { it.uid == uid }
+                ?: throw IllegalStateException("Failed to update todo item")
+        }
     }
 
     override suspend fun moveTodoItem(entityId: String, uid: String, previousUid: String?): Result<List<TodoItem>> {
@@ -154,7 +160,7 @@ class HomeAssistantWebSocket @OptIn(ExperimentalCoroutinesApi::class)
             MoveTodoItemCommand(messageId++, serviceData = serviceData)
         )
 
-        return result.map { 
+        return result.map {
             getTodoItems(entityId).getOrThrow()
         }
     }

@@ -89,9 +89,9 @@ class TodoViewModel @Inject constructor(
     fun updateTodoItemSummary(uid: String, newSummary: String) {
         viewModelScope.launch {
             webSocketService.updateTodoItem(entityId, uid, summary = newSummary)
-                .onSuccess { 
-                    delay(100)
-                    loadTodoItems()
+                .onSuccess {
+                    delay(100) // Dodaj opóźnienie jak w innych metodach
+                    loadTodoItems() // Załaduj zaktualizowaną listę z serwera
                 }
                 .onFailure { error ->
                     Log.e("TodoViewModel", "Error updating item: ${error.message}")

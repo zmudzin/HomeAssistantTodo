@@ -4,23 +4,28 @@ class UpdateTodoItemCommand(
     override val id: Int,
     val entityId: String,
     val uid: String,
-    val status: String,
+    val rename: String? = null,
+    val status: String? = null,
     val description: String? = null,
     val due: String? = null
 ) : Command {
     override val type: String = "call_service"
 
-    override fun toJson() = mapOf(
-        "id" to id,
-        "type" to "call_service",
-        "domain" to "todo",
-        "service" to "update_item",
-        "target" to mapOf("entity_id" to entityId),
-        "service_data" to buildMap {
-            put("item", uid)
-            put("status", status)
-            description?.let { put("description", it) }
-            due?.let { put("due", it) }
-        }
-    )
+    override fun toJson() = buildMap {
+        put("id", id)
+        put("type", "call_service")
+        put("domain", "todo")
+        put("service", "update_item")
+        put("service_data", mapOf(
+            "entity_id" to entityId,
+            "item" to uid
+        ).let { baseData ->
+            val mutableData = baseData.toMutableMap()
+            rename?.let { mutableData["rename"] = it }
+            status?.let { mutableData["status"] = it }
+            description?.let { mutableData["description"] = it }
+            due?.let { mutableData["due"] = it }
+            mutableData
+        })
+    }
 }

@@ -16,14 +16,17 @@ interface WebSocketService {
     // Todo operations
     suspend fun getTodoItems(entityId: String): Result<List<TodoItem>>
     suspend fun createTodoItem(entityId: String, summary: String): Result<TodoItem>
-    suspend fun updateTodoItemStatus(entityId: String, uid: String, status: String,description: String? = null,due: String? = null): Result<TodoItem>
+    suspend fun updateTodoItemStatus(
+        entityId: String,
+        uid: String,
+        rename: String
+    ): Result<TodoItem>
     suspend fun deleteTodoItem(entityId: String, uid: String): Result<Unit>
     suspend fun subscribeTodoChanges(entityId: String): Result<Int>
     suspend fun updateTodoItem(
         entityId: String,
         uid: String,
         summary: String? = null,
-        status: String? = null,
         description: String? = null,
         due: String? = null
     ): Result<TodoItem>
