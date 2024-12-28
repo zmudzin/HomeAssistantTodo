@@ -1,5 +1,7 @@
 package com.example.homeassistanttodo.data.websocket.core
 
+import android.content.ContentValues.TAG
+import android.util.Log
 import com.example.homeassistanttodo.data.model.TodoItem
 import com.example.homeassistanttodo.data.websocket.WebSocketMessage
 import com.example.homeassistanttodo.data.websocket.WebSocketService
@@ -120,6 +122,14 @@ class HomeAssistantWebSocket @OptIn(ExperimentalCoroutinesApi::class)
         }
     }
 
+    override suspend fun deleteTodoItem(entityId: String, uid: String): Result<Unit> {
+        Log.d(TAG, "Deleting todo item: entityId=$entityId, uid=$uid")
+        return messageManager.executeCommand(DeleteTodoItemCommand(messageId++, entityId, uid))
+            .map {
+                Log.d(TAG, "Todo item deleted successfully")
+            }
+    }
+
     override suspend fun updateTodoItem(
         entityId: String,
         uid: String,
@@ -127,6 +137,8 @@ class HomeAssistantWebSocket @OptIn(ExperimentalCoroutinesApi::class)
         description: String?,
         due: String?
     ): Result<TodoItem> {
+        Log.d(TAG, "Updating todo item: entityId=$entityId, uid=$uid, summary=$summary")
+
         val rename = summary ?: return getTodoItems(entityId).map {
             it.find { item -> item.uid == uid }
                 ?: throw IllegalStateException("Failed to update todo item")
@@ -143,6 +155,7 @@ class HomeAssistantWebSocket @OptIn(ExperimentalCoroutinesApi::class)
                 due
             )
         ).map {
+            Log.d(TAG, "Todo item updated successfully")
             getTodoItems(entityId).getOrThrow()
                 .find { it.uid == uid }
                 ?: throw IllegalStateException("Failed to update todo item")
@@ -165,21 +178,17 @@ class HomeAssistantWebSocket @OptIn(ExperimentalCoroutinesApi::class)
         }
     }
 
-    override suspend fun deleteTodoItem(entityId: String, uid: String): Result<Unit> {
-        return messageManager.executeCommand(DeleteTodoItemCommand(messageId++, entityId, uid))
-            .map { }
-    }
 
     override suspend fun subscribeTodoChanges(entityId: String): Result<Int> {
         return subscribeToEvents("state_changed")
-            .map { subscriptionId ->
-                subscriptionId
-            }
+            .map { messageId - 1 } // Zwróć poprzedni identyfikator wiadomości jako ID subskrypcji
     }
 
     override suspend fun subscribeToEvents(eventType: String?): Result<Int> {
-        val result = messageManager.executeCommand(SubscribeEventsCommand(messageId++, eventType))
-        return result.map { messageId - 1 }
+        val result = messageManager.executeCommand(
+            SubscribeEventsCommand(messageId++, eventType)
+        )
+        return result.map { messageId - 1 } // Zwróć ID wiadomości jako ID subskrypcji
     }
 
     override suspend fun sendCommand(command: String, parameters: Map<String, Any>?): Result<JsonElement?> =

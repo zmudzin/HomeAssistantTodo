@@ -96,9 +96,39 @@ class DefaultMessageManager @Inject constructor(
     }
 
     private suspend fun handleEvent(event: WebSocketMessage.Event) {
-        Log.d(TAG, "Received event: $event")
-        _events.emit(event)
-        eventCallbacks.notify(event)
+        Log.d(TAG, "Received raw event: $event")
+
+        try {
+            val eventObject = event.event
+            val eventType = eventObject.get("event_type")?.asString
+            val data = eventObject.getAsJsonObject("data")
+
+            if (eventType == "state_changed") {
+                val entityId = data.get("entity_id")?.asString
+                val oldState = data.getAsJsonObject("old_state")
+                val newState = data.getAsJsonObject("new_state")
+
+                Log.d(TAG, "Detailed event - EntityId: $entityId")
+                Log.d(TAG, "Old State: ${oldState?.toString()}")
+                Log.d(TAG, "New State: ${newState?.toString()}")
+
+                // Dodaj specjalną obsługę dla todo.lista_zakupow
+                if (entityId == "todo.lista_zakupow") {
+                    val oldStateValue = oldState?.get("state")?.asString
+                    val newStateValue = newState?.get("state")?.asString
+
+                    Log.wtf("TodoWebSocket", "Todo list state change: $oldStateValue -> $newStateValue")
+
+                    // Wydrukuj pełny kontekst zdarzenia
+                    Log.wtf("TodoWebSocket", "Full event context: $eventObject")
+                }
+            }
+
+            _events.emit(event)
+            eventCallbacks.notify(event)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing event", e)
+        }
     }
 
     private suspend fun processQueuedMessages() {
